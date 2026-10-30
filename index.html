@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>과일 요거트 찹쌀떡</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" width="1280" height="720"></canvas>
+    <video id="cam" playsinline muted hidden></video>
+
+    <div id="hud" class="hidden">
+      <span id="hud-phase"></span>
+      <span id="hud-timer"></span>
+    </div>
+
+    <section id="screen-start" class="screen">
+      <h1>과일 요거트 찹쌀떡</h1>
+      <p>입을 벌려 재료를 먹고, 손으로 떡을 만져 보세요.</p>
+      <button id="btn-start">시작</button>
+      <p id="start-status" class="status"></p>
+    </section>
+
+    <section id="screen-result" class="screen hidden">
+      <h2 id="result-title"></h2>
+      <p id="result-score"></p>
+      <button id="btn-retry">다시 하기</button>
+    </section>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
