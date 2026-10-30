@@ -10,6 +10,7 @@ const IDLE_WOBBLE = 1100;      // 가만히 있어도 살짝 출렁이게 하는
 const START_KICK = 420;        // 처음 나타날 때 한 번 출렁이는 세기
 const GRAB_RANGE = 110;        // 핀치한 손과 윤곽선 점이 이만큼 가까우면 잡힌다
 const MAX_STRETCH = 260;       // 잡은 점이 제자리에서 이보다 더 멀리 끌려가지 않는다
+const EAT_RANGE = 70;          // 잡은 점이 입에서 이만큼 가까우면 입에 닿은 것으로 본다
 
 const points = [];
 let cx = 0;
@@ -126,6 +127,12 @@ function updateGrab(hand) {
     dy = (dy / len) * MAX_STRETCH;
   }
   grabTarget = { x: grabbed.homeX + dx, y: grabbed.homeY + dy };
+}
+
+// 떡을 잡은 채로 그 부분이 입에 닿고, 입이 열려 있으면 true.
+export function isMochiEaten(mouth) {
+  if (!grabbed || !mouth || !mouth.open) return false;
+  return Math.hypot(grabbed.x + cx - mouth.x, grabbed.y + cy - mouth.y) <= EAT_RANGE;
 }
 
 function step(h) {
