@@ -1,6 +1,6 @@
 // 카메라를 켜고, 얼굴(입)과 손(핀치) 입력을 돌려준다.
 // 입은 MediaPipe Face Landmarker, 손 위치는 Hand Landmarker로 인식한다.
-// 핀치는 아직 마우스 좌클릭으로 흉내 내는 임시 입력이다. (개발용, A5에서 교체)
+// 핀치는 엄지와 검지 사이 거리로 판정한다. 마우스 좌클릭도 핀치로 친다. (개발용)
 // 좌표는 캔버스 픽셀(1280x720) 기준이고, 카메라 화면은 거울처럼 좌우를 뒤집는다.
 
 const W = 1280;
@@ -22,10 +22,18 @@ const FACE_TOP = 10;
 const FACE_CHIN = 152;
 
 // Hand Landmarker 랜드마크 번호
+const WRIST = 0;
 const THUMB_TIP = 4;
 const INDEX_TIP = 8;
+const MIDDLE_MCP = 9;
 
-let pinch = false;
+// 핀치 임계값: (엄지~검지 끝 거리) / (손목~중지 뿌리 거리, 손바닥 길이).
+// 시작과 끝을 다르게 둬서, 경계에서 값이 깜빡이지 않게 한다.
+const PINCH_ON_RATIO = 0.3;
+const PINCH_OFF_RATIO = 0.5;
+
+let handPinch = false;
+let mousePinch = false;
 let mouth = null;
 let hand = null;
 let listening = false;
@@ -102,6 +110,17 @@ function handFrom(landmarks) {
   };
 }
 
+// 엄지와 검지를 집었는지 판정한다. 실제 크기(미터) 좌표를 손바닥 길이로 나눠서
+// 손이 카메라에서 멀어져도 같은 기준으로 판정한다.
+function pinchFrom(world, wasPinching) {
+  if (!world) return false;
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+  const palm = dist(world[WRIST], world[MIDDLE_MCP]);
+  if (palm === 0) return false;
+  const ratio = dist(world[THUMB_TIP], world[INDEX_TIP]) / palm;
+  return ratio < (wasPinching ? PINCH_OFF_RATIO : PINCH_ON_RATIO);
+}
+
 // 영상 프레임이 바뀔 때마다 얼굴과 손을 인식해서 mouth, hand를 갱신한다.
 // 한쪽이 오류가 나도 다른 쪽은 계속 인식한다.
 function startDetecting(videoEl) {
@@ -121,11 +140,14 @@ function startDetecting(videoEl) {
       mouth = null;
     }
     try {
-      const found = handLandmarker.detectForVideo(videoEl, now).landmarks?.[0];
+      const result = handLandmarker.detectForVideo(videoEl, now);
+      const found = result.landmarks?.[0];
       hand = found ? handFrom(found) : null;
+      handPinch = found ? pinchFrom(result.worldLandmarks?.[0], handPinch) : false;
     } catch (err) {
       console.error('손 인식 오류', err);
       hand = null;
+      handPinch = false;
     }
   };
   tick();
@@ -149,23 +171,23 @@ export async function initInput(videoEl) {
   startDetecting(videoEl);
 }
 
-// 개발용 임시 핀치 (A5에서 진짜 핀치 판정으로 교체)
+// 개발용 임시 핀치: 좌클릭을 누르고 있으면 핀치로 친다. (A6에서 정리)
 function listenMouse() {
   window.addEventListener('mousedown', (e) => {
-    if (e.button === 0) pinch = true;
+    if (e.button === 0) mousePinch = true;
   });
   window.addEventListener('mouseup', (e) => {
-    if (e.button === 0) pinch = false;
+    if (e.button === 0) mousePinch = false;
   });
   // 창을 벗어나면 눌린 상태가 남지 않게 푼다.
   window.addEventListener('blur', () => {
-    pinch = false;
+    mousePinch = false;
   });
 }
 
 export function getInput() {
   return {
     mouth,
-    hand: hand ? { x: hand.x, y: hand.y, pinch } : null,
+    hand: hand ? { x: hand.x, y: hand.y, pinch: handPinch || mousePinch } : null,
   };
 }
