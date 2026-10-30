@@ -23,6 +23,7 @@ const SPAWN_INTERVAL = 0.8;   // 초
 const FALL_SPEED_MIN = 140;   // 픽셀/초
 const FALL_SPEED_MAX = 260;
 const FRUIT_CHANCE = 0.6;     // 새로 나올 재료가 과일일 확률
+const MOUTH_RADIUS = 40;      // 입이 재료와 닿았다고 보는 범위
 
 let items = [];
 let spawnTimer = 0;
@@ -57,6 +58,19 @@ export function updateItems(dt) {
   for (const item of items) item.y += item.vy * dt;
   // 바닥 아래로 완전히 나가면 사라진다.
   items = items.filter((item) => item.y - ITEM_RADIUS <= H);
+}
+
+// 입이 열려 있을 때 입과 겹친 재료를 지우고, 먹힌 재료(ITEM_TYPES 항목)를 배열로 돌려준다.
+export function eatItems(mouth) {
+  if (!mouth || !mouth.open) return [];
+  const reach = ITEM_RADIUS + MOUTH_RADIUS;
+  const eaten = [];
+  items = items.filter((item) => {
+    const touching = Math.hypot(item.x - mouth.x, item.y - mouth.y) <= reach;
+    if (touching) eaten.push(item.type);
+    return !touching;
+  });
+  return eaten;
 }
 
 export function drawItems(ctx) {
