@@ -14,10 +14,38 @@ let cx = 0;
 let cy = 0;
 let clock = 0;
 
+// 색은 하얀 요거트(무게 1)에 먹은 재료 색을 하나씩 더해서 평균을 낸다.
+const BASE_RGB = [255, 255, 255];
+let rgbSum = [...BASE_RGB];
+let colorWeight = 1;
+let sweet = 0;
+let sour = 0;
+let weird = 0;
+let fruitIds = new Set();
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function rgbToHex([r, g, b]) {
+  return '#' + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+}
+
+function currentColor() {
+  return rgbToHex(rgbSum.map((v) => v / colorWeight));
+}
+
 export function resetMochi(x, y) {
   cx = x;
   cy = y;
   clock = 0;
+  rgbSum = [...BASE_RGB];
+  colorWeight = 1;
+  sweet = 0;
+  sour = 0;
+  weird = 0;
+  fruitIds = new Set();
   points.length = 0;
   for (let i = 0; i < POINT_COUNT; i++) {
     const angle = (i / POINT_COUNT) * Math.PI * 2;
@@ -34,6 +62,20 @@ export function resetMochi(x, y) {
       vy: -START_KICK * Math.sin(angle) * 0.2,
     });
   }
+}
+
+export function addIngredient(item) {
+  const rgb = hexToRgb(item.color);
+  for (let i = 0; i < 3; i++) rgbSum[i] += rgb[i];
+  colorWeight += 1;
+  sweet += item.sweet;
+  sour += item.sour;
+  weird += item.weird;
+  if (item.kind === 'fruit') fruitIds.add(item.id);
+}
+
+export function getMochiState() {
+  return { color: currentColor(), sweet, sour, weird, fruitKinds: fruitIds.size };
 }
 
 // hand는 이후 이슈(잡아서 늘리기)에서 쓴다. 지금은 받기만 한다.
@@ -94,7 +136,7 @@ export function drawMochi(ctx) {
   }
   ctx.closePath();
 
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = currentColor();
   ctx.fill();
   ctx.lineWidth = 5;
   ctx.strokeStyle = '#5a3d5c';
