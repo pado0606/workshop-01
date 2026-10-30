@@ -5,14 +5,18 @@ const RADIUS = 130;
 
 const HOME_STIFFNESS = 90;     // 제자리로 돌아오는 힘
 const NEIGHBOR_STIFFNESS = 60; // 이웃 점과 평균을 맞추려는 힘
-const DAMPING = 3.2;           // 클수록 빨리 가라앉는다
-const IDLE_WOBBLE = 800;       // 가만히 있어도 살짝 출렁이게 하는 힘
+const DAMPING = 10;            // 클수록 빨리 가라앉는다
+const IDLE_WOBBLE = 1100;      // 가만히 있어도 살짝 출렁이게 하는 힘
 const START_KICK = 420;        // 처음 나타날 때 한 번 출렁이는 세기
+const GRAB_RANGE = 110;        // 핀치한 손과 윤곽선 점이 이만큼 가까우면 잡힌다
+const MAX_STRETCH = 260;       // 잡은 점이 제자리에서 이보다 더 멀리 끌려가지 않는다
 
 const points = [];
 let cx = 0;
 let cy = 0;
 let clock = 0;
+let grabbed = null; // 잡힌 점 (없으면 null)
+let grabTarget = { x: 0, y: 0 }; // 잡은 점이 따라갈 위치 (떡 중심 기준)
 
 // 색은 하얀 요거트(무게 1)에 먹은 재료 색을 하나씩 더해서 평균을 낸다.
 const BASE_RGB = [255, 255, 255];
@@ -40,6 +44,7 @@ export function resetMochi(x, y) {
   cx = x;
   cy = y;
   clock = 0;
+  grabbed = null;
   rgbSum = [...BASE_RGB];
   colorWeight = 1;
   sweet = 0;
@@ -78,15 +83,49 @@ export function getMochiState() {
   return { color: currentColor(), sweet, sour, weird, fruitKinds: fruitIds.size };
 }
 
-// hand는 이후 이슈(잡아서 늘리기)에서 쓴다. 지금은 받기만 한다.
+// hand: { x, y, pinch } | null. 핀치하면 가까운 점을 잡고, 놓거나 손이 사라지면 놓는다.
 export function updateMochi(dt, hand) {
   if (points.length === 0) return;
   clock += dt;
+  updateGrab(hand);
 
   // 한 번에 큰 시간이 들어와도 터지지 않게 잘게 나눠서 계산한다.
   const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
   const h = dt / steps;
   for (let s = 0; s < steps; s++) step(h);
+}
+
+function updateGrab(hand) {
+  if (!hand || !hand.pinch) {
+    grabbed = null;
+    return;
+  }
+  const hx = hand.x - cx;
+  const hy = hand.y - cy;
+
+  if (!grabbed) {
+    let best = null;
+    let bestDist = GRAB_RANGE;
+    for (const p of points) {
+      const d = Math.hypot(p.x - hx, p.y - hy);
+      if (d <= bestDist) {
+        best = p;
+        bestDist = d;
+      }
+    }
+    grabbed = best;
+  }
+  if (!grabbed) return;
+
+  // 너무 멀리 늘어나지 않게, 제자리에서 MAX_STRETCH까지만 따라간다.
+  let dx = hx - grabbed.homeX;
+  let dy = hy - grabbed.homeY;
+  const len = Math.hypot(dx, dy);
+  if (len > MAX_STRETCH) {
+    dx = (dx / len) * MAX_STRETCH;
+    dy = (dy / len) * MAX_STRETCH;
+  }
+  grabTarget = { x: grabbed.homeX + dx, y: grabbed.homeY + dy };
 }
 
 function step(h) {
@@ -113,8 +152,15 @@ function step(h) {
     p.vy *= Math.max(0, 1 - DAMPING * h);
   }
   for (const p of points) {
-    p.x += p.vx * h;
-    p.y += p.vy * h;
+    if (p === grabbed) {
+      p.x = grabTarget.x;
+      p.y = grabTarget.y;
+      p.vx = 0;
+      p.vy = 0;
+    } else {
+      p.x += p.vx * h;
+      p.y += p.vy * h;
+    }
   }
 }
 
