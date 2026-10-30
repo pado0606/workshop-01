@@ -1,7 +1,11 @@
 // 카메라를 켜고, 얼굴(입)과 손(핀치) 입력을 돌려준다.
 // 입은 MediaPipe Face Landmarker, 손 위치는 Hand Landmarker로 인식한다.
-// 핀치는 엄지와 검지 사이 거리로 판정한다. 마우스 좌클릭도 핀치로 친다. (개발용)
+// 핀치는 엄지와 검지 사이 거리로 판정한다.
 // 좌표는 캔버스 픽셀(1280x720) 기준이고, 카메라 화면은 거울처럼 좌우를 뒤집는다.
+//
+// 개발용 임시 입력: 주소 끝에 ?input=mouse를 붙여 열면 카메라 없이 마우스로 흉내 낸다.
+// 마우스 위치 = mouth, hand 좌표 / 좌클릭 누름 = hand.pinch / 스페이스 = mouth.open
+// 붙이지 않으면 진짜 입력만 쓰고, 마우스와 키보드는 입력에 영향을 주지 않는다.
 
 const W = 1280;
 const H = 720;
@@ -33,9 +37,12 @@ const PINCH_ON_RATIO = 0.3;
 const PINCH_OFF_RATIO = 0.5;
 
 let handPinch = false;
-let mousePinch = false;
 let mouth = null;
 let hand = null;
+let mouseMode = false;
+let mousePos = { x: W / 2, y: H / 2 };
+let mouseDown = false;
+let spaceDown = false;
 let listening = false;
 let cameraOn = false;
 let faceLandmarker = null;
@@ -154,9 +161,14 @@ function startDetecting(videoEl) {
 }
 
 export async function initInput(videoEl) {
-  if (!listening) {
-    listening = true;
-    listenMouse();
+  mouseMode = new URLSearchParams(globalThis.location?.search).get('input') === 'mouse';
+  if (mouseMode) {
+    console.info('개발용 마우스 입력으로 실행 중이에요. (카메라를 쓰지 않아요)');
+    if (!listening) {
+      listening = true;
+      listenMouseAndKeys();
+    }
+    return;
   }
   if (!cameraOn) await startCamera(videoEl);
   if (!faceLandmarker || !handLandmarker) {
@@ -171,23 +183,52 @@ export async function initInput(videoEl) {
   startDetecting(videoEl);
 }
 
-// 개발용 임시 핀치: 좌클릭을 누르고 있으면 핀치로 친다. (A6에서 정리)
-function listenMouse() {
+// 개발용: 마우스 위치를 캔버스 픽셀 좌표로 바꾼다.
+function toCanvas(e) {
+  const rect = document.getElementById('game').getBoundingClientRect();
+  return {
+    x: ((e.clientX - rect.left) * W) / rect.width,
+    y: ((e.clientY - rect.top) * H) / rect.height,
+  };
+}
+
+// 개발용: 마우스와 스페이스 입력을 듣는다.
+function listenMouseAndKeys() {
+  window.addEventListener('mousemove', (e) => {
+    mousePos = toCanvas(e);
+  });
   window.addEventListener('mousedown', (e) => {
-    if (e.button === 0) mousePinch = true;
+    if (e.button === 0) mouseDown = true;
   });
   window.addEventListener('mouseup', (e) => {
-    if (e.button === 0) mousePinch = false;
+    if (e.button === 0) mouseDown = false;
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    spaceDown = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    spaceDown = false;
   });
   // 창을 벗어나면 눌린 상태가 남지 않게 푼다.
   window.addEventListener('blur', () => {
-    mousePinch = false;
+    mouseDown = false;
+    spaceDown = false;
   });
 }
 
 export function getInput() {
+  if (mouseMode) {
+    return {
+      mouth: { x: mousePos.x, y: mousePos.y, open: spaceDown },
+      hand: { x: mousePos.x, y: mousePos.y, pinch: mouseDown },
+    };
+  }
   return {
     mouth,
-    hand: hand ? { x: hand.x, y: hand.y, pinch: handPinch || mousePinch } : null,
+    hand: hand ? { x: hand.x, y: hand.y, pinch: handPinch } : null,
   };
 }
