@@ -14,19 +14,32 @@
     <div id="hud" class="hidden">
       <span id="hud-phase"></span>
       <span id="hud-timer"></span>
+      <div id="hud-bar"><i></i></div>
     </div>
 
     <section id="screen-start" class="screen">
-      <h1>말랑이 한정선</h1>
-      <p>입을 벌려 재료를 먹고, 손으로 떡을 만져 보세요.</p>
-      <button id="btn-start">시작</button>
-      <p id="start-status" class="status"></p>
+      <div class="start-main">
+        <p class="eyebrow">Browser Game · 2026</p>
+        <h1><span>말랑이</span><span class="blue">한정선</span></h1>
+        <p class="lead">입을 벌려 재료를 먹고, 손으로 떡을 만져 보세요.</p>
+        <button id="btn-start"><span>시작</span><b>→</b></button>
+        <p id="start-status" class="status"></p>
+      </div>
+      <ol class="steps">
+        <li><em>01</em><strong>먹기</strong><span>입을 벌려 떨어지는 재료를 먹어요. 60초</span></li>
+        <li><em>02</em><strong>만지기</strong><span>엄지와 검지로 떡을 집어 늘려요.</span></li>
+        <li><em>03</em><strong>맛보기</strong><span>입으로 가져가 먹으면 점수가 나와요.</span></li>
+      </ol>
     </section>
 
     <section id="screen-result" class="screen hidden">
-      <h2 id="result-title"></h2>
-      <p id="result-score"></p>
-      <button id="btn-retry">다시 하기</button>
+      <div class="result-main">
+        <p class="eyebrow">Result</p>
+        <h2 id="result-title"></h2>
+        <p class="score-label">분위기 점수</p>
+        <p id="result-score"></p>
+        <button id="btn-retry"><span>다시 하기</span><b>↻</b></button>
+      </div>
     </section>
   </div>
   <script type="module" src="main.js"></script>
